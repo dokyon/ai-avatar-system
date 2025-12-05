@@ -1,0 +1,43 @@
+{
+  "name": "ai-avatar-system",
+  "version": "0.1.0",
+  "description": "Autonomous development powered by Agentic OS",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "agentic-os",
+    "autonomous"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.86.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "axios": "^1.13.2",
+    "next": "^16.0.7",
+    "openai": "^6.10.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "autoprefixer": "^10.4.22",
+    "eslint": "^8.54.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.17",
+    "tsx": "^4.7.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
