@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest",
+    "test:e2e": "tsx src/cli/run-e2e-tests.ts",
     "system-test": "tsx src/scripts/system-test.ts",
     "health-check": "tsx src/scripts/system-test.ts -- --health-only",
     "lint": "next lint",
