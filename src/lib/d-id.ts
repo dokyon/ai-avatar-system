@@ -51,10 +51,10 @@ const D_ID_API_BASE = 'https://api.d-id.com';
  * D-ID APIリクエスト用のヘッダーを取得
  */
 function getDIdHeaders(): HeadersInit {
-  const apiKey = process.env.D_ID_API_KEY;
-  
+  const apiKey = process.env.DID_API_KEY;
+
   if (!apiKey) {
-    throw new Error('D_ID_API_KEY environment variable is not set');
+    throw new Error('DID_API_KEY environment variable is not set');
   }
   
   return {

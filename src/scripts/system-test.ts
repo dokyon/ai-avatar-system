@@ -182,7 +182,5 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-// メイン関数を実行
-if (require.main === module) {
-  main();
-}
+// メイン関数を実行（ES Modules）
+main();

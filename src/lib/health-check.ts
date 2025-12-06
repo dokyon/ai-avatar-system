@@ -106,7 +106,7 @@ export function checkEnvironmentHealth(): HealthCheckResult {
   const requiredEnvVars = [
     'NEXT_PUBLIC_SUPABASE_URL',
     'NEXT_PUBLIC_SUPABASE_ANON_KEY',
-    'D_ID_API_KEY'
+    'DID_API_KEY'
   ];
   
   const missingVars = requiredEnvVars.filter(
