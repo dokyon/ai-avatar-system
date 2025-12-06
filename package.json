@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest",
+    "system-test": "tsx src/scripts/system-test.ts",
+    "health-check": "tsx src/scripts/system-test.ts -- --health-only",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
@@ -22,6 +24,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "axios": "^1.13.2",
+    "dotenv": "^17.2.3",
     "next": "^16.0.7",
     "openai": "^6.10.0",
     "react": "^19.2.1",
