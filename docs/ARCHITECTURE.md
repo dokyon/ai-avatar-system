@@ -1,216 +1,366 @@
-# AIアバター研修動画システム アーキテクチャ設計
+# Architecture Documentation
 
-## システム概要
+## System Overview
 
-AIアバターが台本を読み上げる研修動画を自動生成し、従業員に提供するシステム
+The **ai-avatar-system** is a Next.js-based web application that generates AI-powered training videos by combining OpenAI's Text-to-Speech (TTS) API with D-ID's avatar video generation API. The system is built with autonomous development capabilities through the Miyabi framework.
 
-## 主要機能
+## High-Level Architecture
 
-### 1. 台本管理
-- AIコースGENで作成した台本のインポート
-- 台本の編集・管理
-- 音声スクリプトの最適化
+```mermaid
+graph TB
+    subgraph "Frontend - Next.js App Router"
+        A[Script Management UI]
+        B[Video Player UI]
+        C[Progress Component]
+    end
 
-### 2. AIアバター動画生成
-- D-ID APIを使用したリップシンク動画生成
-- OpenAI TTS/ElevenLabsによる音声合成
-- 動画の保存・管理
+    subgraph "Backend - API Routes"
+        D[/api/generate-video]
+    end
 
-### 3. スライド管理
-- PDF/PowerPointスライドのアップロード
-- スライドと動画の同期
-- スライドの表示・ナビゲーション
+    subgraph "Services Layer"
+        E[VideoGenerationService]
+        F[Validation Utils]
+        G[Retry Utils]
+    end
 
-### 4. 研修視聴システム
-- 動画とスライドの統合表示
-- 視聴進捗管理
-- 視聴履歴の記録
+    subgraph "External APIs"
+        H[OpenAI TTS API]
+        I[D-ID Avatar API]
+        J[Supabase Database]
+    end
 
-## 技術スタック
+    subgraph "Miyabi Framework"
+        K[IssueAgent]
+        L[CodeGenAgent]
+        M[ReviewAgent]
+        N[CoordinatorAgent]
+    end
 
-### フロントエンド
-- **Framework**: Next.js 14 (App Router)
-- **UI Library**: shadcn/ui + Tailwind CSS
-- **State Management**: Zustand
-- **Video Player**: React Player
-- **PDF Viewer**: react-pdf
+    A --> D
+    D --> E
+    E --> F
+    E --> G
+    E --> H
+    E --> I
+    E --> J
+    C -.Progress Updates.-> E
 
-### バックエンド
-- **Runtime**: Next.js API Routes (Edge Functions)
-- **Database**: Supabase (PostgreSQL)
-- **Storage**: Supabase Storage (動画・スライド保存)
-- **Authentication**: Supabase Auth
+    N --> K
+    K --> L
+    L --> M
 
-### 外部API
-- **AIアバター**: D-ID API
-  - リップシンク動画生成
-  - 無料トライアル: $10分のクレジット
-- **音声合成**: OpenAI TTS API
-  - 自然な日本語音声
-  - コスト効率良い
-
-## システム構成
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                     ユーザー (従業員)                        │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│              Next.js Frontend (研修視聴UI)                 │
-│  - 動画プレイヤー                                           │
-│  - スライド表示                                             │
-│  - 視聴進捗トラッキング                                      │
-└─────────────────────────┬───────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│           Next.js API Routes (バックエンド)                │
-│  - 台本処理 API                                            │
-│  - 動画生成 API                                            │
-│  - スライド管理 API                                         │
-│  - 視聴履歴 API                                            │
-└─────┬────────────┬──────────────┬───────────────────────┘
-      │            │              │
-      ▼            ▼              ▼
-┌─────────┐  ┌──────────┐  ┌────────────────┐
-│ D-ID    │  │ OpenAI   │  │ Supabase       │
-│ API     │  │ TTS API  │  │ - PostgreSQL   │
-│         │  │          │  │ - Storage      │
-│ リップ   │  │ 音声生成  │  │ - Auth         │
-│ シンク   │  │          │  │                │
-└─────────┘  └──────────┘  └────────────────┘
+    style H fill:#10a37f
+    style I fill:#6366f1
+    style J fill:#3ecf8e
 ```
 
-## データモデル
+## Component Architecture
 
-### 1. scripts (台本)
-```typescript
+### 1. Frontend Layer
+
+#### Next.js App Router Structure
+
+\`\`\`
+src/app/
+├── page.tsx                 # Home page
+├── layout.tsx              # Root layout with providers
+├── scripts/
+│   ├── page.tsx           # Script list view
+│   └── [id]/page.tsx      # Script detail & edit
+├── videos/
+│   └── [id]/page.tsx      # Video player page
+└── api/
+    └── generate-video/
+        └── route.ts       # Video generation endpoint
+\`\`\`
+
+**Key Components**:
+
+- **VideoGenerationProgress.tsx**: Real-time progress indicator
+  - Shows 4 steps: Validation → Audio → Video → Complete
+  - Displays progress percentage (0-100%)
+  - Error state handling with detailed messages
+  - Step indicators: ○ (pending), ● (current), ✓ (completed), ✕ (error)
+
+#### State Management (Zustand)
+
+\`\`\`typescript
+// src/lib/store.ts
+interface AppState {
+  scripts: Script[];
+  videos: Video[];
+  currentProgress: ProgressState | null;
+  setProgress: (progress: ProgressState) => void;
+}
+\`\`\`
+
+### 2. Services Layer
+
+#### VideoGenerationService
+
+**Location**: \`src/services/videoGenerationService.ts\`
+
+**Responsibilities**:
+1. Orchestrate the entire video generation pipeline
+2. Call OpenAI TTS API for audio generation
+3. Call D-ID API for avatar video creation
+4. Track and report progress to UI
+5. Handle errors with automatic retry
+
+**Architecture**:
+
+\`\`\`mermaid
+sequenceDiagram
+    participant UI
+    participant Service as VideoGenerationService
+    participant Validator
+    participant Retry
+    participant OpenAI
+    participant DID
+
+    UI->>Service: generateVideo(script)
+    Service->>Validator: validateScriptOrThrow(script)
+    Validator-->>Service: ✓ Valid
+
+    Service->>UI: Progress: VALIDATING (10%)
+
+    Service->>Retry: withRetry(callOpenAIAPI)
+    Retry->>OpenAI: Create TTS
+    OpenAI-->>Retry: audioUrl
+    Retry-->>Service: { audioUrl }
+
+    Service->>UI: Progress: GENERATING_AUDIO (30%)
+
+    Service->>Retry: withRetry(callDIDAPI)
+    Retry->>DID: Create avatar video
+    DID-->>Retry: videoUrl
+    Retry-->>Service: { videoUrl }
+
+    Service->>UI: Progress: GENERATING_VIDEO (70%)
+    Service->>UI: Progress: COMPLETED (100%)
+    Service-->>UI: { videoUrl, audioUrl, duration }
+\`\`\`
+
+**Constructor Options**:
+\`\`\`typescript
+interface VideoGenerationServiceConfig {
+  openaiApiKey: string;
+  didApiKey: string;
+  onProgress?: (progress: ProgressState) => void;
+}
+\`\`\`
+
+**Public API**:
+\`\`\`typescript
+async generateVideo(script: string): Promise<VideoGenerationResult>
+\`\`\`
+
+### 3. Utilities Layer
+
+#### Validation Module (\`src/utils/validation.ts\`)
+
+**Purpose**: Validate user input before processing
+
+**Constraints**:
+- Minimum length: 10 characters
+- Maximum length: 5,000 characters
+- Not empty or whitespace-only
+
+**API**:
+\`\`\`typescript
+// Returns result object
+validateScript(script: string): ValidationResult
+
+// Throws VideoGenerationError if invalid
+validateScriptOrThrow(script: string): void
+\`\`\`
+
+#### Retry Module (\`src/utils/retry.ts\`)
+
+**Purpose**: Implement resilient API calls with exponential backoff
+
+**Configuration**:
+\`\`\`typescript
+interface RetryConfig {
+  maxRetries: number;           // Default: 3
+  retryDelay: number;           // Default: 1000ms
+  exponentialBackoff: boolean;  // Default: true
+}
+\`\`\`
+
+**Retry Schedule** (with exponential backoff):
+- Attempt 1: Immediate
+- Attempt 2: Wait 1s (1000ms)
+- Attempt 3: Wait 2s (2000ms)
+- Attempt 4: Wait 4s (4000ms)
+
+### 4. Type System
+
+#### Error Types (\`src/types/errors.ts\`)
+
+**Error Classification**:
+
+\`\`\`typescript
+type ApiErrorType =
+  | 'OPENAI_ERROR'         // OpenAI API failures (retryable)
+  | 'DID_ERROR'            // D-ID API failures (retryable)
+  | 'NETWORK_ERROR'        // Network issues (retryable)
+  | 'CREDIT_INSUFFICIENT'  // No API credits (non-retryable)
+  | 'VALIDATION_ERROR'     // Bad input (non-retryable)
+  | 'UNKNOWN_ERROR'        // Unexpected (retryable)
+\`\`\`
+
+#### Progress Types (\`src/types/progress.ts\`)
+
+**Progress Steps**:
+\`\`\`typescript
+type ProgressStep =
+  | 'VALIDATING'        // 0-20%
+  | 'GENERATING_AUDIO'  // 20-50%
+  | 'GENERATING_VIDEO'  // 50-90%
+  | 'COMPLETED'         // 100%
+  | 'ERROR'             // 0% with error message
+\`\`\`
+
+## Data Flow
+
+### Video Generation Pipeline
+
+\`\`\`mermaid
+stateDiagram-v2
+    [*] --> Validating: User submits script
+    Validating --> GeneratingAudio: Input valid
+    Validating --> Error: Validation failed
+
+    GeneratingAudio --> GeneratingVideo: Audio created
+    GeneratingAudio --> Retry: API error
+
+    GeneratingVideo --> Completed: Video created
+    GeneratingVideo --> Retry: API error
+
+    Retry --> GeneratingAudio: Retry audio (< 3)
+    Retry --> GeneratingVideo: Retry video (< 3)
+    Retry --> Error: Max retries exceeded
+
+    Completed --> [*]
+    Error --> [*]
+
+    note right of Retry
+        Exponential backoff:
+        1s → 2s → 4s
+    end note
+\`\`\`
+
+## External API Integration
+
+### OpenAI TTS API
+
+**Endpoint**: \`https://api.openai.com/v1/audio/speech\`
+
+**Request**:
+\`\`\`typescript
 {
-  id: string
-  title: string
-  content: string
-  metadata: {
-    source: 'ai-course-gen' | 'manual'
-    createdAt: timestamp
-    updatedAt: timestamp
+  model: "tts-1",
+  input: script,
+  voice: "alloy"
+}
+\`\`\`
+
+**Response**:
+\`\`\`typescript
+{
+  audioUrl: string  // MP3 audio file URL
+}
+\`\`\`
+
+### D-ID Avatar API
+
+**Endpoint**: \`https://api.d-id.com/talks\`
+
+**Request**:
+\`\`\`typescript
+{
+  script: {
+    type: "audio",
+    audio_url: audioUrl
+  },
+  source_url: avatarImageUrl,
+  config: {
+    fluent: true,
+    pad_audio: 0.0
   }
 }
-```
+\`\`\`
 
-### 2. videos (動画)
-```typescript
+**Response**:
+\`\`\`typescript
 {
-  id: string
-  scriptId: string
-  title: string
-  status: 'pending' | 'processing' | 'completed' | 'failed'
-  videoUrl: string
-  thumbnailUrl: string
-  duration: number
-  metadata: {
-    avatarId: string
-    voiceId: string
-    createdAt: timestamp
-  }
+  videoUrl: string,
+  duration: number  // Video length in seconds
 }
-```
+\`\`\`
 
-### 3. slides (スライド)
-```typescript
-{
-  id: string
-  videoId: string
-  fileUrl: string
-  pageCount: number
-  metadata: {
-    fileName: string
-    fileSize: number
-    uploadedAt: timestamp
-  }
-}
-```
+## Miyabi Framework Integration
 
-### 4. viewing_progress (視聴進捗)
-```typescript
-{
-  id: string
-  userId: string
-  videoId: string
-  currentTime: number
-  completed: boolean
-  completedAt?: timestamp
-  updatedAt: timestamp
-}
-```
+### Agent Architecture
 
-## ワークフロー
+\`\`\`mermaid
+graph TB
+    subgraph "GitHub"
+        A[Issue Created]
+        B[PR Created]
+        C[PR Merged]
+    end
 
-### 動画生成フロー
-1. **台本インポート**: AIコースGENから台本をインポート
-2. **音声生成**: OpenAI TTSで音声ファイルを生成
-3. **動画生成**: D-ID APIで音声とアバターを合成
-4. **保存**: Supabase Storageに動画を保存
-5. **公開**: 従業員に研修動画を公開
+    subgraph "Miyabi Agents"
+        D[IssueAgent]
+        E[CoordinatorAgent]
+        F[CodeGenAgent]
+        G[TestAgent]
+        H[ReviewAgent]
+        I[PRAgent]
+        J[DeploymentAgent]
+    end
 
-### 視聴フロー
-1. **認証**: Supabase Authでログイン
-2. **研修選択**: 利用可能な研修一覧から選択
-3. **視聴**: 動画とスライドを同期表示
-4. **進捗記録**: 視聴位置を自動保存
-5. **完了**: 視聴完了時に記録
+    subgraph "Anthropic Claude"
+        K[Sonnet 4]
+    end
 
-## セキュリティ
+    A --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    H -->|Score ≥ 80| I
+    H -->|Score < 80| F
+    I --> B
+    C --> J
 
-- **認証**: Supabase Authによるユーザー認証
-- **認可**: Row Level Security (RLS)で権限管理
-- **API Key管理**: 環境変数で安全に管理
-- **HTTPS**: すべての通信を暗号化
+    D -.Uses.-> K
+    E -.Uses.-> K
+    F -.Uses.-> K
+    H -.Uses.-> K
 
-## スケーラビリティ
+    style K fill:#d4a276
+\`\`\`
 
-- **CDN**: Vercel Edgeで静的コンテンツ配信
-- **動画配信**: Supabase Storageから直接配信
-- **サーバーレス**: Next.js API Routesで自動スケール
-- **データベース**: Supabaseの自動スケーリング
+### Agent Responsibilities
 
-## コスト見積もり（月額）
+**1. IssueAgent**: Analyzes issues and applies 65-label classification
 
-### 小規模 (従業員100名、月10本の研修動画)
-- **D-ID API**: 10動画 × $0.3/分 × 5分 = $15
-- **OpenAI TTS**: 10動画 × 5分 × 300文字/分 × $0.015/1000文字 = $2.25
-- **Supabase**: Free tier (十分)
-- **Vercel**: Hobby tier (無料)
-- **合計**: 約$20/月
+**2. CoordinatorAgent**: Breaks down tasks into DAG structure
 
-### 中規模 (従業員500名、月50本の研修動画)
-- **D-ID API**: $75
-- **OpenAI TTS**: $11.25
-- **Supabase**: Pro tier $25
-- **Vercel**: Pro tier $20
-- **合計**: 約$130/月
+**3. CodeGenAgent**: Generates production code with quality scoring
 
-## 開発フェーズ
+**4. ReviewAgent**: Static analysis and security scanning
 
-### Phase 1: MVP (2週間)
-- [ ] Next.jsプロジェクトセットアップ
-- [ ] Supabase設定
-- [ ] 台本インポート機能
-- [ ] D-ID API統合
-- [ ] 基本的な動画生成
+**5. TestAgent**: Test execution and coverage reporting
 
-### Phase 2: 視聴システム (1週間)
-- [ ] 動画プレイヤー実装
-- [ ] スライド表示機能
-- [ ] 視聴進捗トラッキング
+**6. PRAgent**: Automatic Draft PR creation
 
-### Phase 3: 管理機能 (1週間)
-- [ ] 管理者ダッシュボード
-- [ ] 研修一覧・編集
-- [ ] 視聴レポート
+**7. DeploymentAgent**: CI/CD automation with health checks
 
-### Phase 4: 本番環境 (1週間)
-- [ ] 認証・認可
-- [ ] パフォーマンス最適化
-- [ ] デプロイ設定
+---
+
+**Last Updated**: 2025-12-06 | **Version**: 1.0.0 | **Maintained by**: Miyabi Agents
