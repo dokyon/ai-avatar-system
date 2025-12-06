@@ -106,6 +106,7 @@ export async function testVideoGeneration(scriptId: string, script: TestScript):
       .from('videos')
       .insert({
         script_id: scriptId,
+        title: script.title,
         d_id_video_id: videoId,
         status: 'processing',
         created_at: new Date().toISOString(),

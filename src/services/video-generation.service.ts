@@ -46,14 +46,12 @@ export class VideoGenerationService {
       await this.dbService.updateScriptStatus(scriptId, 'processing');
       onProgress?.({ step: 'tts', status: 'processing', message: 'Generating audio...' });
 
-      // Generate audio using OpenAI TTS
-      const ttsResponse = await this.ttsService.generateSpeech(script.content);
-      
+      // Skip OpenAI TTS in Node.js environment, use D-ID's text-to-speech instead
       onProgress?.({ step: 'video', status: 'processing', message: 'Generating video...' });
 
-      // Create video using D-ID
-      const videoResponse = await this.videoService.createVideo(
-        ttsResponse.audioUrl,
+      // Create video using D-ID with text input (works in Node.js)
+      const videoResponse = await this.videoService.createVideoFromText(
+        script.content,
         this.presenterImageUrl
       );
 

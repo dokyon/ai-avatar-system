@@ -13,6 +13,45 @@ export class DIDVideoService {
   }
 
   /**
+   * Create video with lip-sync from text
+   * @param text - Text to convert to speech
+   * @param presenterImageUrl - URL of presenter image
+   * @returns Promise<DIDResponse>
+   */
+  async createVideoFromText(text: string, presenterImageUrl: string): Promise<DIDResponse> {
+    try {
+      const response = await fetch(`${this.baseUrl}/talks`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          source_url: presenterImageUrl,
+          script: {
+            type: 'text',
+            input: text,
+            subtitles: false,
+          },
+          config: {
+            fluent: false,
+            pad_audio: 0.0,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`D-ID API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data as DIDResponse;
+    } catch (error) {
+      throw new Error(`Video generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Create video with lip-sync
    * @param audioUrl - URL of audio file
    * @param presenterImageUrl - URL of presenter image
