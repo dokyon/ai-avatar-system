@@ -2,17 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 import axios from 'axios'
+import { config } from 'dotenv'
+import { resolve } from 'path'
+
+// Explicitly load .env.local to fix Next.js 16 ESM environment variable loading issue
+config({ path: resolve(process.cwd(), '.env.local') })
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || '',
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 )
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
-const DID_API_KEY = process.env.DID_API_KEY
 
 export async function POST(request: NextRequest) {
   try {
@@ -100,6 +99,15 @@ async function generateVideoAsync(videoId: string, scriptContent: string) {
 }
 
 async function generateAudio(text: string): Promise<ArrayBuffer> {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    throw new Error('OpenAI API Key is not configured')
+  }
+
+  const openai = new OpenAI({
+    apiKey: apiKey,
+  })
+
   const mp3 = await openai.audio.speech.create({
     model: 'tts-1',
     voice: 'alloy', // 日本語対応の音声
@@ -110,6 +118,7 @@ async function generateAudio(text: string): Promise<ArrayBuffer> {
 }
 
 async function generateLipSyncVideo(audioBase64: string): Promise<string> {
+  const DID_API_KEY = process.env.DID_API_KEY
   if (!DID_API_KEY) {
     throw new Error('D-ID API Key is not configured')
   }
