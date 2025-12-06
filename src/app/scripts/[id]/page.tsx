@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase, Script, Video } from '@/lib/supabase'
 import Link from 'next/link'
+import { AvatarSelector } from '@/components/AvatarSelector'
+import type { Avatar } from '@/types/avatar'
 
 export default function ScriptDetailPage() {
   const params = useParams()
@@ -12,6 +14,7 @@ export default function ScriptDetailPage() {
   const [videos, setVideos] = useState<Video[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null)
 
   useEffect(() => {
     if (params.id) {
@@ -51,6 +54,12 @@ export default function ScriptDetailPage() {
   const handleGenerateVideo = async () => {
     if (!script) return
 
+    // Check if avatar is selected
+    if (!selectedAvatar) {
+      alert('アバターを選択してください')
+      return
+    }
+
     setIsGenerating(true)
     try {
       const response = await fetch('/api/generate-video', {
@@ -60,6 +69,8 @@ export default function ScriptDetailPage() {
           scriptId: script.id,
           title: script.title,
           content: script.content,
+          avatarId: selectedAvatar.id,
+          avatarUrl: selectedAvatar.d_id_source_url,
         }),
       })
 
@@ -75,6 +86,10 @@ export default function ScriptDetailPage() {
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  const handleAvatarSelect = (avatar: Avatar) => {
+    setSelectedAvatar(avatar)
   }
 
   if (isLoading) {
@@ -130,10 +145,17 @@ export default function ScriptDetailPage() {
           <div>
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <h2 className="text-xl font-bold mb-4">動画生成</h2>
+
+              {/* Avatar Selector */}
+              <AvatarSelector
+                onAvatarSelect={handleAvatarSelect}
+                className="mb-4"
+              />
+
               <button
                 onClick={handleGenerateVideo}
-                disabled={isGenerating}
-                className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                disabled={isGenerating || !selectedAvatar}
+                className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
                 {isGenerating ? '生成中...' : 'AIアバター動画を生成'}
               </button>
