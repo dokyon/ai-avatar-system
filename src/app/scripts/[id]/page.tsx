@@ -4,8 +4,20 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase, Script, Video } from '@/lib/supabase'
 import Link from 'next/link'
-import { AvatarSelector } from '@/components/AvatarSelector'
+import { UnifiedAvatarSelector } from '@/components/UnifiedAvatarSelector'
+import { AvatarPhotoUploader } from '@/components/AvatarPhotoUploader'
 import type { Avatar } from '@/types/avatar'
+
+interface AvatarOption {
+  id: string;
+  name: string;
+  description?: string | null;
+  thumbnail_url?: string | null;
+  category?: string;
+  type: 'd-id' | 'custom';
+  heygen_avatar_id?: string | null;
+  d_id_source_url?: string;
+}
 
 export default function ScriptDetailPage() {
   const params = useParams()
@@ -14,7 +26,10 @@ export default function ScriptDetailPage() {
   const [videos, setVideos] = useState<Video[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
-  const [selectedAvatar, setSelectedAvatar] = useState<Avatar | null>(null)
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarOption | null>(null)
+  const [showUploader, setShowUploader] = useState(false)
+  const [isCreatingAvatar, setIsCreatingAvatar] = useState(false)
+  const [avatarCreationStatus, setAvatarCreationStatus] = useState<string>('')
 
   useEffect(() => {
     if (params.id) {
@@ -62,6 +77,12 @@ export default function ScriptDetailPage() {
 
     setIsGenerating(true)
     try {
+      // For custom avatars, use heygen_avatar_id
+      // For D-ID avatars, use the existing logic
+      const avatarIdToUse = selectedAvatar.type === 'custom'
+        ? selectedAvatar.heygen_avatar_id
+        : selectedAvatar.id
+
       const response = await fetch('/api/generate-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -69,7 +90,7 @@ export default function ScriptDetailPage() {
           scriptId: script.id,
           title: script.title,
           content: script.content,
-          avatarId: selectedAvatar.id,
+          avatarId: avatarIdToUse,
           avatarUrl: selectedAvatar.d_id_source_url,
         }),
       })
@@ -88,8 +109,71 @@ export default function ScriptDetailPage() {
     }
   }
 
-  const handleAvatarSelect = (avatar: Avatar) => {
+  const handleAvatarSelect = (avatar: AvatarOption) => {
     setSelectedAvatar(avatar)
+  }
+
+  const handleUploadSuccess = async (result: { uploadId: string; fileName: string; publicUrl: string; filePath: string }) => {
+    setIsCreatingAvatar(true)
+    setAvatarCreationStatus('カスタムアバターを作成中...')
+
+    try {
+      // Call create avatar API
+      const response = await fetch('/api/avatars/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          avatarName: result.fileName.replace(/\.[^/.]+$/, ''),
+          photoUrl: result.publicUrl,
+          uploadId: result.uploadId,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!data.success) {
+        throw new Error(data.error || 'アバター作成に失敗しました')
+      }
+
+      setAvatarCreationStatus('アバター作成が完了するまで待機中（最大10分）...')
+
+      // Poll for avatar completion
+      const avatarId = data.avatarId
+      let attempts = 0
+      const maxAttempts = 60 // 10 minutes with 10s intervals
+
+      const pollStatus = async () => {
+        const statusResponse = await fetch(`/api/avatars/create?id=${avatarId}`)
+        const statusData = await statusResponse.json()
+
+        if (statusData.success && statusData.avatar) {
+          const avatar = statusData.avatar
+
+          if (avatar.status === 'completed') {
+            setAvatarCreationStatus('カスタムアバター作成完了！')
+            setShowUploader(false)
+            alert('カスタムアバターが作成されました！アバターリストから選択できます。')
+            // Refresh the page to reload avatar list
+            window.location.reload()
+          } else if (avatar.status === 'failed') {
+            throw new Error(avatar.error_message || 'アバター作成に失敗しました')
+          } else if (attempts < maxAttempts) {
+            attempts++
+            setAvatarCreationStatus(`処理中... (${attempts}/${maxAttempts})`)
+            setTimeout(pollStatus, 10000) // Poll every 10 seconds
+          } else {
+            throw new Error('タイムアウト: アバター作成に時間がかかりすぎています')
+          }
+        }
+      }
+
+      setTimeout(pollStatus, 10000) // Start polling after 10 seconds
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'アバター作成に失敗しました'
+      setAvatarCreationStatus(`エラー: ${errorMessage}`)
+      alert(errorMessage)
+      setIsCreatingAvatar(false)
+    }
   }
 
   if (isLoading) {
@@ -146,11 +230,35 @@ export default function ScriptDetailPage() {
             <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <h2 className="text-xl font-bold mb-4">動画生成</h2>
 
-              {/* Avatar Selector */}
-              <AvatarSelector
+              {/* Unified Avatar Selector */}
+              <UnifiedAvatarSelector
                 onAvatarSelect={handleAvatarSelect}
                 className="mb-4"
               />
+
+              {/* Custom Avatar Upload Section */}
+              <div className="mb-4">
+                <button
+                  onClick={() => setShowUploader(!showUploader)}
+                  className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                >
+                  {showUploader ? '写真アップロードを閉じる' : '+ カスタムアバターを作成'}
+                </button>
+
+                {showUploader && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <AvatarPhotoUploader
+                      onUploadSuccess={handleUploadSuccess}
+                      onUploadError={(error) => alert(error)}
+                    />
+                    {isCreatingAvatar && avatarCreationStatus && (
+                      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-800">{avatarCreationStatus}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <button
                 onClick={handleGenerateVideo}

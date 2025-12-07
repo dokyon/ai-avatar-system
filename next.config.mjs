@@ -2,9 +2,19 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: [
-      'create-images-results.d-id.com',
-      'clips-presenters.d-id.com',
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'create-images-results.d-id.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'clips-presenters.d-id.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.supabase.co',
+      },
     ],
   },
 }
