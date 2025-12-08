@@ -1,7 +1,7 @@
 /**
  * Avatar Type Definitions
  *
- * Type definitions for D-ID avatar master data system.
+ * Type definitions for HeyGen avatar system.
  * Provides type safety for avatar selection and management.
  *
  * @module types/avatar
@@ -22,7 +22,7 @@ export type AvatarCategory = 'business' | 'general' | 'casual' | 'education';
  * Avatar database entity
  *
  * Represents an avatar record in the Supabase database.
- * Contains all metadata needed for avatar selection and D-ID API calls.
+ * Contains all metadata needed for avatar selection and HeyGen API calls.
  */
 export interface Avatar {
   /** Unique identifier (UUID) */
@@ -31,7 +31,7 @@ export interface Avatar {
   /** Display name of the avatar */
   name: string;
 
-  /** D-ID source image URL for API calls */
+  /** HeyGen avatar ID or source image URL for API calls */
   d_id_source_url: string;
 
   /** Thumbnail image URL for UI display */
@@ -84,7 +84,7 @@ export interface AvatarSelection {
   /** Avatar name for display */
   avatarName: string;
 
-  /** D-ID source URL for API call */
+  /** HeyGen avatar ID or source URL for API call */
   sourceUrl: string;
 }
 

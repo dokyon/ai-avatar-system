@@ -1,7 +1,7 @@
 /**
  * UnifiedAvatarSelector Component
  *
- * UI component for selecting both D-ID and custom HeyGen avatars.
+ * UI component for selecting both standard HeyGen avatars and custom Photo Avatars.
  *
  * @module components/UnifiedAvatarSelector
  */
@@ -38,16 +38,16 @@ export function UnifiedAvatarSelector({
   const [selectedAvatar, setSelectedAvatar] = useState<AvatarOption | null>(null);
 
   /**
-   * Fetch both D-ID and custom avatars
+   * Fetch both standard HeyGen avatars and custom Photo Avatars
    */
   useEffect(() => {
     const fetchAvatars = async () => {
       try {
         setIsLoading(true);
 
-        // Fetch D-ID avatars
-        const didResponse = await fetch('/api/avatars?activeOnly=true');
-        const didData = await didResponse.json();
+        // Fetch standard HeyGen avatars
+        const standardResponse = await fetch('/api/avatars?activeOnly=true');
+        const standardData = await standardResponse.json();
 
         // Fetch custom avatars
         const customResponse = await fetch('/api/custom-avatars?status=completed');
@@ -55,10 +55,10 @@ export function UnifiedAvatarSelector({
 
         const allAvatars: AvatarOption[] = [];
 
-        // Add D-ID avatars
-        if (didData.success && didData.avatars) {
+        // Add standard HeyGen avatars
+        if (standardData.success && standardData.avatars) {
           allAvatars.push(
-            ...didData.avatars.map((avatar: any) => ({
+            ...standardData.avatars.map((avatar: any) => ({
               id: avatar.id,
               name: avatar.name,
               description: avatar.description,
@@ -177,7 +177,7 @@ export function UnifiedAvatarSelector({
   }
 
   // Group avatars by type
-  const didAvatars = avatars.filter((a) => a.type === 'd-id');
+  const standardAvatars = avatars.filter((a) => a.type === 'd-id');
   const customAvatars = avatars.filter((a) => a.type === 'custom');
 
   return (
@@ -197,9 +197,9 @@ export function UnifiedAvatarSelector({
         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all mb-4"
         aria-label="アバター選択"
       >
-        {didAvatars.length > 0 && (
-          <optgroup label="標準アバター (D-ID)">
-            {didAvatars.map((avatar) => (
+        {standardAvatars.length > 0 && (
+          <optgroup label="標準アバター (HeyGen)">
+            {standardAvatars.map((avatar) => (
               <option key={avatar.id} value={avatar.id}>
                 {avatar.name} - {avatar.description || avatar.category}
               </option>

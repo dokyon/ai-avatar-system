@@ -129,7 +129,7 @@
 
 #### コンポーネント統合
 - **UnifiedAvatarSelector** (`src/components/UnifiedAvatarSelector.tsx`)
-  - D-IDアバターとカスタムアバターの統合選択UI
+  - HeyGen標準アバターとカスタムアバターの統合選択UI
   - optgroupで標準/カスタムアバターを分類表示
   - アバタープレビュー機能
   - `/api/avatars` と `/api/custom-avatars` から両方のアバターを取得
@@ -186,9 +186,8 @@
 # ✅ すべて設定済み
 NEXT_PUBLIC_SUPABASE_URL=https://sljugvkpkepgcwbwiccl.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_****** (公開鍵)
-DID_API_KEY=****** (廃止)
-HEYGEN_API_KEY=****** (設定済み) ⭐ NEW
-OPENAI_API_KEY=****** (設定済み)
+HEYGEN_API_KEY=****** (設定済み)
+OPENAI_API_KEY=****** (設定済み - HeyGen内蔵音声使用のため不要)
 ```
 
 ### 開発サーバー
@@ -235,7 +234,7 @@ OPENAI_API_KEY=****** (設定済み)
 
 ### 2. アバター選択機能のテスト
 
-1. 標準アバター（D-ID）の選択と動画生成テスト
+1. 標準アバター（HeyGen）の選択と動画生成テスト
 2. カスタムアバターの選択と動画生成テスト
 3. サーバーログで正しいavatarIdが使用されているか確認
 
@@ -276,7 +275,7 @@ OPENAI_API_KEY=****** (設定済み)
 **解決**: 10分間のメモリキャッシュ実装
 
 ### ✅ アバター選択が機能しない
-**原因**: UIが古いD-ID UUIDを送信している
+**原因**: 旧AvatarSelectorコンポーネントの問題
 **解決**: UnifiedAvatarSelectorに置き換え、HeyGen avatar_idを正しく処理するように修正完了
 
 ## トラブルシューティング
@@ -294,7 +293,7 @@ npm run dev
 ### 動画生成エラー
 - HeyGen APIクレジット残高を確認
 - サーバーログで詳細エラーを確認
-- アバターIDが正しいか確認（HeyGen形式: 文字列、D-ID形式: UUID）
+- アバターIDが正しいか確認（HeyGen形式: 文字列）
 
 ### モジュールエラー
 ```bash
